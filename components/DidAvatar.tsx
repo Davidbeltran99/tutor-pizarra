@@ -2,9 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 
+type ClientKeyApiResponse = {
+  ok?: boolean;
+  client_key?: string;
+  allowed_domains?: string[];
+  message?: string;
+  description?: string;
+};
+
 export default function DidAvatar() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const agentRef = useRef<any>(null);
+  const agentRef = useRef<unknown>(null);
   const [status, setStatus] = useState("iniciando...");
 
   useEffect(() => {
@@ -15,26 +23,26 @@ export default function DidAvatar() {
         setStatus("pidiendo client key...");
 
         const res = await fetch("/api/did/client-key", {
-          method: "POST",
+          method: "GET",
         });
 
-        const rawText = await res.text();
-        let data: any = null;
+        const data = (await res.json()) as ClientKeyApiResponse;
 
-        try {
-          data = JSON.parse(rawText);
-        } catch {
+        if (!res.ok || !data?.client_key) {
           throw new Error(
-            `La ruta /api/did/client-key no devolvió JSON. Respuesta: ${rawText.slice(0, 120)}`
+            data?.message ||
+              data?.description ||
+              "No se pudo obtener client key"
           );
         }
 
-        if (!res.ok) {
-          throw new Error(data?.message || "No se pudo obtener client key");
-        }
-
-        if (!data?.client_key) {
-          throw new Error("D-ID no devolvió client_key");
+        if (
+          Array.isArray(data.allowed_domains) &&
+          !data.allowed_domains.includes("http://localhost:3000")
+        ) {
+          throw new Error(
+            "El client_key existe, pero no permite http://localhost:3000"
+          );
         }
 
         const agentId = process.env.NEXT_PUBLIC_DID_AGENT_ID;
@@ -82,10 +90,15 @@ export default function DidAvatar() {
         if (mounted) {
           setStatus("avatar listo 🎉");
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error("ERROR D-ID:", error);
+
         if (mounted) {
-          setStatus(error?.message || "Error conectando con D-ID");
+          setStatus(
+            error instanceof Error
+              ? error.message
+              : "Error conectando con D-ID"
+          );
         }
       }
     }
@@ -95,7 +108,10 @@ export default function DidAvatar() {
     return () => {
       mounted = false;
 
-      const currentAgent = agentRef.current;
+      const currentAgent = agentRef.current as {
+        disconnect?: () => Promise<void>;
+      } | null;
+
       if (currentAgent?.disconnect) {
         currentAgent.disconnect().catch((err: unknown) => {
           console.error("Error al desconectar D-ID:", err);
@@ -119,6 +135,7 @@ export default function DidAvatar() {
         ref={videoRef}
         autoPlay
         playsInline
+        muted
         style={{
           width: "100%",
           minHeight: 420,
@@ -127,8 +144,15 @@ export default function DidAvatar() {
           background: "black",
         }}
       />
-
-      <p style={{ marginTop: 10, fontSize: 14 }}>D-ID: {status}</p>
+      <p
+        style={{
+          marginTop: 10,
+          fontSize: 14,
+          color: "#9ca3af",
+        }}
+      >
+        {status}
+      </p>
     </div>
   );
 }

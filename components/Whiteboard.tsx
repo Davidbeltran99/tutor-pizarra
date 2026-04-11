@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import { Stage, Layer, Line, Rect, Text } from "react-konva";
 
 type DrawLine = {
@@ -51,11 +51,24 @@ export default function Whiteboard() {
   const [errorMessage, setErrorMessage] = useState("");
   const [rawText, setRawText] = useState("");
   const [finalAnswer, setFinalAnswer] = useState("");
-  const [exercise, setExercise] = useState<Exercise>(() => generateExercise());
+
+  // 🔥 CORRECCIÓN PRINCIPAL DEL HYDRATION
+  const [exercise, setExercise] = useState<Exercise>({
+    question: "Cargando ejercicio...",
+    answer: "",
+  });
+
+  // 🔥 Generar ejercicio SOLO en cliente
+  useEffect(() => {
+    setExercise(generateExercise());
+  }, []);
 
   const stageRef = useRef<any>(null);
 
-  const exerciseLabel = useMemo(() => exercise.question, [exercise]);
+  const exerciseLabel = useMemo(
+    () => exercise.question,
+    [exercise]
+  );
 
   const handleMouseDown = (e: any) => {
     setIsDrawing(true);
@@ -113,6 +126,7 @@ export default function Whiteboard() {
     }
 
     const dataURL = stageRef.current.toDataURL({ pixelRatio: 3 });
+
     setPreviewImage(dataURL);
     setLoading(true);
     setResult(null);
@@ -146,10 +160,14 @@ export default function Whiteboard() {
         const parsed = JSON.parse(data.result);
         setResult(parsed);
       } catch {
-        setErrorMessage("OpenAI respondió, pero no devolvió JSON válido.");
+        setErrorMessage(
+          "OpenAI respondió, pero no devolvió JSON válido."
+        );
       }
     } catch {
-      setErrorMessage("No se pudo conectar con el backend.");
+      setErrorMessage(
+        "No se pudo conectar con el backend."
+      );
     } finally {
       setLoading(false);
     }
@@ -213,7 +231,11 @@ export default function Whiteboard() {
       <div style={{ marginTop: "18px" }}>
         <label
           htmlFor="finalAnswer"
-          style={{ display: "block", marginBottom: "8px", fontWeight: "bold" }}
+          style={{
+            display: "block",
+            marginBottom: "8px",
+            fontWeight: "bold",
+          }}
         >
           Respuesta final
         </label>
@@ -222,7 +244,9 @@ export default function Whiteboard() {
           id="finalAnswer"
           type="text"
           value={finalAnswer}
-          onChange={(e) => setFinalAnswer(e.target.value)}
+          onChange={(e) =>
+            setFinalAnswer(e.target.value)
+          }
           placeholder="Escribe aquí tu respuesta"
           style={{
             width: "100%",
@@ -238,7 +262,14 @@ export default function Whiteboard() {
         />
       </div>
 
-      <div style={{ marginTop: "14px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
+      <div
+        style={{
+          marginTop: "14px",
+          display: "flex",
+          gap: "10px",
+          flexWrap: "wrap",
+        }}
+      >
         <button
           onClick={clearBoard}
           style={{
@@ -289,7 +320,9 @@ export default function Whiteboard() {
 
       {previewImage && (
         <div style={{ marginTop: "20px" }}>
-          <p style={{ fontWeight: "bold" }}>Vista previa:</p>
+          <p style={{ fontWeight: "bold" }}>
+            Vista previa:
+          </p>
           <img
             src={previewImage}
             alt="Vista previa de la pizarra"
@@ -325,18 +358,45 @@ export default function Whiteboard() {
             borderRadius: "10px",
           }}
         >
-          <p><strong>Resultado del tutor:</strong></p>
-          <p>¿Correcto?: {result.is_correct ? "Sí" : "No"}</p>
-          <p>Respuesta del estudiante: {result.student_answer || "No detectada"}</p>
-          <p>Feedback: {result.feedback || "Sin feedback"}</p>
-          <p>Pista: {result.hint || "Sin pista"}</p>
+          <p>
+            <strong>Resultado del tutor:</strong>
+          </p>
+
+          <p>
+            ¿Correcto?:{" "}
+            {result.is_correct ? "Sí" : "No"}
+          </p>
+
+          <p>
+            Respuesta del estudiante:{" "}
+            {result.student_answer ||
+              "No detectada"}
+          </p>
+
+          <p>
+            Feedback:{" "}
+            {result.feedback ||
+              "Sin feedback"}
+          </p>
+
+          <p>
+            Pista: {result.hint || "Sin pista"}
+          </p>
         </div>
       )}
 
       {rawText && (
         <details style={{ marginTop: "14px" }}>
-          <summary>Ver respuesta cruda</summary>
-          <pre style={{ whiteSpace: "pre-wrap" }}>{rawText}</pre>
+          <summary>
+            Ver respuesta cruda
+          </summary>
+          <pre
+            style={{
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {rawText}
+          </pre>
         </details>
       )}
     </div>
